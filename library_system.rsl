@@ -1,0 +1,66 @@
+SCHEMA LibrarySystem
+
+  TYPE
+    BookId, UserId, ReferenceId = NAT;
+    Title, Author, Publisher, ReferenceDescription = TEXT;
+    Isbn = TEXT;
+
+  CLASS Reference ==
+    id: ReferenceId;
+    description: ReferenceDescription;
+    isbn: Isbn;
+
+  CLASS Book ==
+    id: BookId;
+    title: Title;
+    author: Author;
+    isbn: Isbn;
+    references: SET OF Reference;
+
+  CLASS User ==
+    id: UserId;
+    name: TEXT;
+
+  STATE
+    books: MAP BookId TO Book;
+    users: MAP UserId TO User;
+    borrowed_books: MAP BookId TO UserId;
+
+  OPERATIONS
+
+    AddBook(book: Book)
+    PRE
+      NOT (book.id IN DOM books)
+    POST
+      books = books ++ {book.id |-> book};
+
+    AddUser(user: User)
+    PRE
+      NOT (user.id IN DOM users)
+    POST
+      users = users ++ {user.id |-> user};
+
+    BorrowBook(book_id: BookId, user_id: UserId)
+    PRE
+      book_id IN DOM books AND
+      user_id IN DOM users AND
+      NOT (book_id IN DOM borrowed_books)
+    POST
+      borrowed_books = borrowed_books ++ {book_id |-> user_id};
+
+    ReturnBook(book_id: BookId)
+    PRE
+      book_id IN DOM borrowed_books
+    POST
+      borrowed_books = {bid |-> uid | bid |-> uid IN borrowed_books AND bid <> book_id};
+
+    FindAvailableReferencedBooks(main_book_id: BookId): SET OF Book
+    PRE
+      main_book_id IN DOM books
+    POST
+      RESULT =
+        { b | b: Book & b.id IN DOM books AND
+                       NOT (b.id IN DOM borrowed_books) AND
+                       EXISTS r: Reference (r IN books(main_book_id).references AND r.isbn = b.isbn) };
+
+END LibrarySystem
